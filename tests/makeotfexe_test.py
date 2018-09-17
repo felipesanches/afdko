@@ -154,6 +154,27 @@ def test_DFLT_script_with_any_lang_bug438():
     ('test_mark_to_ligature_subtable_overflow',
         b"[FATAL] <SourceSans-Test> ligature coverage offset overflow "
         b"(0x1007a) in MarkToLigature positioning"),
+    ('test_singlesub1_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> GSUB feature 'tss2' causes overflow "
+        b"of offset to a subtable"),
+    ('test_singlesub2_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> GSUB feature 'tss1' causes overflow "
+        b"of offset to a subtable"),
+    ('test_multiplesub_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> GSUB feature 'mts1' causes overflow "
+        b"of offset to a subtable"),
+    ('test_alternatesub_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> GSUB feature 'ats1' causes overflow "
+        b"of offset to a subtable"),
+    ('test_ligaturesub_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> GSUB feature 'lts1' causes overflow "
+        b"of offset to a subtable"),
+    ('test_chaincontextualsub_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> GSUB feature '\xff\xff\xff\xff' causes "
+        b"overflow of offset to a subtable"),
+    ('test_reversechaincontextualsub_subtable_overflow',
+        b"[FATAL] <SourceSans-Test> Reverse Chain contextual lookup "
+        b"subtable in GSUB feature 'rts1' causes offset overflow"),
 ])
 def test_oveflow_report_bug313(feat_name, error_msg):
     input_filename = 'bug313/font.pfa'

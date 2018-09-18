@@ -129,13 +129,13 @@ def test_DFLT_script_with_any_lang_bug438():
 @pytest.mark.parametrize('feat_name, error_msg', [
     ('test_named_lookup',
         b"[FATAL] <SourceSans-Test> GPOS feature 'last' causes overflow of "
-        b"offset to a subtable (0x100010020)"),
+        b"offset to a subtable"),
     ('test_singlepos_subtable_overflow',
         b"[FATAL] <SourceSans-Test> GPOS feature 'sps1' causes overflow of "
-        b"offset to a subtable (0x100010188)"),
+        b"offset to a subtable"),
     ('test_class_pair_subtable_overflow',
         b"[FATAL] <SourceSans-Test> GPOS feature 'last' causes overflow of "
-        b"offset to a subtable (0x100010020)"),
+        b"offset to a subtable"),
     ('test_class_pair_class_def_overflow',
         b"[FATAL] <SourceSans-Test> ClassDef offset overflow (0x1001a) in "
         b"pair positioning"),

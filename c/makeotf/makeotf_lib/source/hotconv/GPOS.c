@@ -3764,8 +3764,9 @@ static LOffset getAnchoOffset(hotCtx g, AnchorMarkInfo *anchor, void *fmt) {
 
     if (i == localFmt->anchorList.cnt) {
         /* did not find the anchor in the list. Add it */
-        AnchorListRec *prevAnchorRec = &localFmt->anchorList.array[i - 1];
+        AnchorListRec *prevAnchorRec;
         anchorRec = dnaNEXT(localFmt->anchorList);
+        prevAnchorRec = &localFmt->anchorList.array[i - 2];
         anchorRec->anchor = *anchor;
         anchorRec->offset = prevAnchorRec->offset;
         if (prevAnchorRec->anchor.format == 2) {

@@ -152,7 +152,8 @@ def test_DFLT_script_with_any_lang_bug438():
         b"[FATAL] <SourceSans-Test> MarkToBase lookup subtable in GPOS "
         b"feature 'mrk1' causes offset overflow."),
     ('test_mark_to_ligature_subtable_overflow',
-        b"[FATAL] <SourceSans-Test> MarkToBase lookup subtable in GPOS feature 'lig1' causes offset overflow"),
+        b"[FATAL] <SourceSans-Test> MarkToBase lookup subtable in GPOS "
+        b"feature 'lig1' causes offset overflow"),
     ('test_singlesub1_subtable_overflow',
         b"[FATAL] <SourceSans-Test> GSUB feature 'tss2' causes overflow "
         b"of offset to a subtable"),

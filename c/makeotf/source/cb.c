@@ -198,12 +198,16 @@ void message(void *ctx, int type, char *text) {
 static char* findDirName(char *path)
 {
     size_t i = strlen(path);
+    char* end = NULL;
     while (i > 0)
     {
-        if (strchr("/\\:", path[--i]) != NULL)
+        end = strchr("/\\:", path[--i]);
+        if (end != NULL)
             break;
     }
-    return &path[i];
+    if (end != NULL)
+        end = &path[i];
+    return end;
 }
 
 /* Make a copy of a string */

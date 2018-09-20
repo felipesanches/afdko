@@ -147,7 +147,7 @@ def test_DFLT_script_with_any_lang_bug438():
         b"GPOS feature 'curs' causes offset overflow."),
     ('test_mark_to_base_coverage_overflow',
         b"[FATAL] <SourceSans-Test> base coverage offset overflow "
-        b"(0x10082) in MarkToBase positioning"),
+        b"(0x1002c) in MarkToBase positioning"),
     ('test_mark_to_base_subtable_overflow',
         b"[FATAL] <SourceSans-Test> MarkToBase lookup subtable in GPOS "
         b"feature 'mrk1' causes offset overflow."),

@@ -2199,6 +2199,7 @@ static void closeFeaScrLan(State *st) {
                 hotMsg(g, hotFATAL, "[internal] unrecognized tbl");
             }
         }
+        g->error_id_text[0] = '\0';
 
         /* Close feature */
         if (st->tbl == GSUB_) {
@@ -2918,6 +2919,20 @@ void featWrapUpFeatFile(void) {
 
 /* Current fea, scr, lan, lkpFlag already set. Need to set label. */
 
+static void setIDText(hotCtx g, featCtx h)
+{
+    if (h->curr.feature == TAG_STAND_ALONE)
+        sprintf(g->error_id_text, "stand-alone");
+    else
+        sprintf(g->error_id_text, "feature '%c%c%c%c'", TAG_ARG(h->curr.feature));
+    if (IS_NAMED_LAB(h->curr.label))
+    {
+        char* p = g->error_id_text + strlen(g->error_id_text);
+        NamedLkp *curr = lab2NamedLkp(h->currNamedLkp);
+        sprintf(p, " lookup '%s'", curr->name);
+    }
+}
+
 static void prepRule(Tag newTbl, int newlkpType, GNode *targ, GNode *repl) {
     int accumDFLTLkps = 1;
 
@@ -3066,6 +3081,7 @@ static void prepRule(Tag newTbl, int newlkpType, GNode *targ, GNode *repl) {
             lkp->label = h->curr.label;
             lkp->useExtension = useExtension;
         }
+        setIDText(g, h);
 
         /* --- COPY CURRENT TO PREVIOUS STATE: */
         h->prev = h->curr;

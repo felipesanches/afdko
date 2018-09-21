@@ -423,8 +423,8 @@ struct hotCtx_ {
     dnaCtx dnaCtx;
     dnaDCL(char, data); /* CFF data object buffer */
     dnaDCL(char, tmp);  /* Temporary conversion buffer */
-    dnaDCL(char, note); /* Buffer for messages */
-
+    dnaDCL(char, note); /* Buffer for accumulated messages */
+    char error_id_text[1024]; /* buffer for text identifying class and feature of error */
     short hadError;        /* Flags if error occurred */
     uint32_t convertFlags; /* flags for building final OTF. */
 };

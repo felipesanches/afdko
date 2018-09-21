@@ -17,13 +17,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define CHECK4OVERFLOW(n, t, s)                                                  \
-    do {                                                                         \
-        if ((n) > 0xFFFF)                                                        \
-            hotMsg(g, hotFATAL, "%s offset overflow (0x%0lx) in %s positioning", \
-                   (t), (n), (s));                                               \
-    } while (0)
-
 /* --------------------------- Context Definition -------------------------- */
 
 typedef struct {
@@ -37,6 +30,7 @@ typedef struct { /* Subtable record */
     Tag script;
     Tag language;
     Tag feature;
+    char id_text[256];
     unsigned short lkpType;
     unsigned short lkpFlag;
     unsigned short markSetIndex;
@@ -134,6 +128,7 @@ typedef struct { /* New subtable data */
     Tag script;
     Tag language;
     Tag feature;
+    Tag parentFeatTag; /* The parent feature for anonymous lookups made by a chaining contextual feature.*/
     short useExtension; /* Use extension lookupType? */
     unsigned short lkpType;
     unsigned short parentLkpType;
@@ -296,6 +291,15 @@ static void kernRecDump(hotCtx g, GID glyph1, GID glyph2, short metricsCnt, shor
 
 /* --------------------------- Standard Functions -------------------------- */
 
+static void check_overflow(hotCtx g, char* offsetType, long offset, char* posType)
+{
+    if (offset > 0xFFFF) {
+        hotMsg(g, hotFATAL,
+               "In %s %s rules cause an offset overflow (0x%lx) to a %s",
+               g->error_id_text, posType, offset, offsetType);
+    }
+}
+
 /* Element initializer */
 
 static void anonSubtableInit(void *ctx, long count, SubtableInfo *si) {
@@ -417,6 +421,7 @@ void GPOSWrite(hotCtx g) {
     /* Write main subtable section */
     for (i = 0; i < h->subtables.cnt; i++) {
         Subtable *sub = &h->subtables.array[i];
+        strcpy(g->error_id_text, sub->id_text);
 
         if (IS_REF_LAB(sub->label)) {
             continue;
@@ -426,8 +431,7 @@ void GPOSWrite(hotCtx g) {
             writeExtension(g, h, sub);
             continue;
         }
-
-        switch (sub->lkpType) {
+       switch (sub->lkpType) {
             case GPOSSingle:
                 writeSinglePos(g, h, sub);
                 break;
@@ -665,6 +669,7 @@ static void startNewSubtable(hotCtx g) {
     sub->script = h->new.script;
     sub->language = h->new.language;
     sub->feature = h->new.feature;
+    strcpy(sub->id_text, g->error_id_text); /* save feature anad lookup names for witing phase */
     sub->lkpType = h->new.lkpType;
     sub->lkpFlag = h->new.lkpFlag;
     sub->markSetIndex = h->new.markSetIndex;
@@ -795,8 +800,8 @@ void GPOSLookupEnd(hotCtx g, Tag feature) {
 
                 default:
                     hotMsg(g, hotFATAL,
-                           "feature '%c%c%c%c'with FeatureParameter is not supported.",
-                           TAG_ARG(h->new.feature));
+                           "%s with FeatureParameter is not supported.",
+                           g->error_id_text);
             }
             break;
 
@@ -843,13 +848,7 @@ void GPOSLookupEnd(hotCtx g, Tag feature) {
             hotMsg(g, hotFATAL, "unknown GPOS lkpType <%d>\n", h->new.lkpType);
     }
 
-    if (h->offset.subtable > 0xFFFF) {
-        hotMsg(g, hotFATAL,
-               "GPOS feature '%c%c%c%c' causes overflow of offset"
-               " to a subtable (0x%lx)",
-               TAG_ARG(h->new.feature),
-               h->offset.subtable);
-    }
+    check_overflow(g, "lookup subtable", h->offset.subtable, "positioning");
 
     if (h->startNewPairPosSubtbl != 0) {
         h->startNewPairPosSubtbl = 0;
@@ -1182,8 +1181,8 @@ static void checkAndSortSinglePos(hotCtx g, GPOSCtx h) {
                 featGlyphDump(g, curr->gid, '\0', 0);
                 hotMsg(g, hotNOTE,
                        "Removing duplicate single positioning "
-                       "in '%c%c%c%c' feature: %s",
-                       TAG_ARG(h->new.feature),
+                       "in %s: %s",
+                       g->error_id_text,
                        g->note.array);
 
                 /* Set prev duplicate to NULL */
@@ -1193,8 +1192,8 @@ static void checkAndSortSinglePos(hotCtx g, GPOSCtx h) {
                 featGlyphDump(g, curr->gid, '\0', 0);
                 hotMsg(g, hotFATAL,
                        "Duplicate single positioning glyph with "
-                       "different values in '%c%c%c%c' feature: %s",
-                       TAG_ARG(h->new.feature), g->note.array);
+                       "different values in %s: %s",
+                       g->error_id_text, g->note.array);
             }
         }
     }
@@ -1467,7 +1466,7 @@ static void writeSinglePos1(hotCtx g, GPOSCtx h, Subtable *sub) {
     if (!sub->extension.use) {
         fmt->Coverage += h->offset.subtable - sub->offset; /* Adjust offset */
     }
-    CHECK4OVERFLOW(fmt->Coverage, "Coverage", "single");
+    check_overflow(g, "coverage table", fmt->Coverage, "single positioning");
 
     OUT2(fmt->PosFormat);
     OUT2((Offset)fmt->Coverage);
@@ -1488,7 +1487,7 @@ static void writeSinglePos2(hotCtx g, GPOSCtx h, Subtable *sub) {
     if (!sub->extension.use) {
         fmt->Coverage += h->offset.subtable - sub->offset; /* Adjust offset */
     }
-    CHECK4OVERFLOW(fmt->Coverage, "Coverage", "single");
+    check_overflow(g, "coverage table", fmt->Coverage, "single positioning");
 
     OUT2(fmt->PosFormat);
     OUT2((Offset)fmt->Coverage);
@@ -2864,6 +2863,7 @@ static SubtableInfo *addAnonPosRule(hotCtx g, GPOSCtx h, SubtableInfo *cur_si, u
                 (si->useExtension == cur_si->useExtension) &&
                 (si->lkpFlag == cur_si->lkpFlag) &&
                 (si->markSetIndex == cur_si->markSetIndex) &&
+                (si->parentFeatTag == h->new.feature) &&
                 (lkpType == si->lkpType)) {
                 return si;
             }
@@ -2876,6 +2876,7 @@ static SubtableInfo *addAnonPosRule(hotCtx g, GPOSCtx h, SubtableInfo *cur_si, u
                     (si->useExtension == cur_si->useExtension) &&
                     (si->lkpFlag == cur_si->lkpFlag) &&
                     (si->markSetIndex == cur_si->markSetIndex) &&
+                    (si->parentFeatTag == h->new.feature) &&
                     (lkpType == si->lkpType)) {
                     if (checkAddRule(si, targ) != 0) {
                         return si;
@@ -2896,6 +2897,7 @@ static SubtableInfo *addAnonPosRule(hotCtx g, GPOSCtx h, SubtableInfo *cur_si, u
     si->script = cur_si->script;
     si->language = cur_si->language;
     si->feature = cur_si->feature;
+    si->parentFeatTag = h->new.feature;
     si->useExtension = cur_si->useExtension; /* Use extension lookupType? */
     si->lkpFlag = cur_si->lkpFlag;
     si->markSetIndex = cur_si->markSetIndex;
@@ -2923,6 +2925,7 @@ static void createAnonLookups(hotCtx g, GPOSCtx h) {
                                                              /* and will not be considered for adding to the FeatureList table */
         *newsi = *si;
 
+        sprintf(g->error_id_text, "feature '%c%c%c%c'", TAG_ARG(si->parentFeatTag));
         GPOSLookupEnd(g, si->feature); /* This is where the fill unctions get called */
         GPOSFeatureEnd(g);
     }
@@ -3100,12 +3103,7 @@ static void fillChain(hotCtx g, GPOSCtx h) {
 
         fillChain3(g, h, otl, sub, i);
 
-        if (h->offset.subtable > 0xFFFF) {
-            hotMsg(g, hotFATAL,
-                   "Chain contextual lookup subtable in GPOS "
-                   "feature '%c%c%c%c' causes offset overflow.",
-                   TAG_ARG(h->new.feature), i);
-        }
+        check_overflow(g, "lookup subtable", h->offset.subtable, "chain contextual positioning");
     }
 }
 
@@ -3137,7 +3135,7 @@ static void writeChain3(hotCtx g, GPOSCtx h, Subtable *sub) {
             if (!isExt) {
                 fmt->Backtrack[i] += adjustment;
             }
-            CHECK4OVERFLOW(fmt->Backtrack[i], "backtrack", "chain contextual");
+            check_overflow(g, "backtrack coverage table", fmt->Backtrack[i], "chain contextual positioning");
             OUT2((unsigned short)fmt->Backtrack[i]);
         }
     } else {
@@ -3146,7 +3144,7 @@ static void writeChain3(hotCtx g, GPOSCtx h, Subtable *sub) {
             if (!isExt) {
                 fmt->Backtrack[i] += adjustment;
             }
-            CHECK4OVERFLOW(fmt->Backtrack[i], "backtrack", "chain contextual");
+            check_overflow(g, "backtrack coverage table", fmt->Backtrack[i], "chain contextual positioning");
             OUT2((unsigned short)fmt->Backtrack[i]);
         }
     }
@@ -3156,7 +3154,7 @@ static void writeChain3(hotCtx g, GPOSCtx h, Subtable *sub) {
         if (!sub->extension.use) {
             fmt->Input[i] += adjustment;
         }
-        CHECK4OVERFLOW(fmt->Input[i], "input", "chain contextual");
+        check_overflow(g, "input coverage table", fmt->Input[i], "chain contextual positioning");
         OUT2((unsigned short)fmt->Input[i]);
     }
 
@@ -3165,7 +3163,7 @@ static void writeChain3(hotCtx g, GPOSCtx h, Subtable *sub) {
         if (!isExt) {
             fmt->Lookahead[i] += adjustment;
         }
-        CHECK4OVERFLOW(fmt->Lookahead[i], "look-ahead", "chain contextual");
+        check_overflow(g, "lookahead coverage table", fmt->Lookahead[i], "chain contextual positioning");
         OUT2((unsigned short)fmt->Lookahead[i]);
     }
 
@@ -3202,7 +3200,7 @@ static void writePairPos1(hotCtx g, GPOSCtx h, Subtable *sub) {
     if (!sub->extension.use) {
         fmt->Coverage += h->offset.subtable - sub->offset; /* Adjust offset */
     }
-    CHECK4OVERFLOW(fmt->Coverage, "Coverage", "pair");
+    check_overflow(g, "coverage table", fmt->Coverage, "pair positioning");
 
     /* Write header */
     OUT2(fmt->PosFormat);
@@ -3249,9 +3247,9 @@ static void writePairPos2(hotCtx g, GPOSCtx h, Subtable *sub) {
         fmt->ClassDef1 += classAdjust;
         fmt->ClassDef2 += classAdjust;
     }
-    CHECK4OVERFLOW(fmt->Coverage, "Coverage", "pair");
-    CHECK4OVERFLOW(fmt->ClassDef1, "ClassDef", "pair");
-    CHECK4OVERFLOW(fmt->ClassDef2, "ClassDef", "pair");
+    check_overflow(g, "coverage table", fmt->Coverage, "pair positioning");
+    check_overflow(g, "class 1 definition table", fmt->ClassDef1, "pair positioning");
+    check_overflow(g, "class 2 definition table", fmt->ClassDef2, "pair positioning");
 
     /* Write header */
     OUT2(fmt->PosFormat);
@@ -3997,12 +3995,7 @@ static void fillMarkToBase(hotCtx g, GPOSCtx h) {
         h->offset.subtable += size;
     }
 
-    if (h->offset.subtable > 0xFFFF) {
-        hotMsg(g, hotFATAL,
-               "MarkToBase lookup subtable in GPOS "
-               "feature '%c%c%c%c' causes offset overflow.",
-               TAG_ARG(h->new.feature));
-    }
+    check_overflow(g, "lookup subtable", h->offset.subtable, "mark to base positioning");
 
     sub->tbl = fmt;
 }
@@ -4024,9 +4017,9 @@ static void writeMarkToBase(hotCtx g, GPOSCtx h, Subtable *sub) {
     fmt->BaseCoverage += adjustment; /* Adjust offset */
 
     OUT2(fmt->PosFormat);
-    CHECK4OVERFLOW(fmt->MarkCoverage, "mark coverage", "MarkToBase");
+    check_overflow(g, "mark coverage table", fmt->MarkCoverage, "mark to base positioning");
     OUT2((Offset)fmt->MarkCoverage);
-    CHECK4OVERFLOW(fmt->BaseCoverage, "base coverage", "MarkToBase");
+    check_overflow(g, "base coverage table", fmt->BaseCoverage, "mark to base positioning");
     OUT2((Offset)fmt->BaseCoverage);
     OUT2(fmt->ClassCount);
     OUT2(fmt->MarkArray);
@@ -4257,12 +4250,7 @@ static void fillMarkToLigature(hotCtx g, GPOSCtx h) {
         h->offset.subtable += size;
     }
 
-    if (h->offset.subtable > 0xFFFF) {
-        hotMsg(g, hotFATAL,
-               "MarkToBase lookup subtable in GPOS "
-               "feature '%c%c%c%c' causes offset overflow.",
-               TAG_ARG(h->new.feature));
-    }
+    check_overflow(g, "lookup subtable", h->offset.subtable, "mark to base positioning");
 
     sub->tbl = fmt;
 }
@@ -4286,9 +4274,9 @@ static void writeMarkToLigature(hotCtx g, GPOSCtx h, Subtable *sub) {
     fmt->LigatureCoverage += adjustment; /* Adjust offset */
 
     OUT2(fmt->PosFormat);
-    CHECK4OVERFLOW(fmt->MarkCoverage, "mark coverage", "MarkToLigature");
+    check_overflow(g, "mark coverage table", h->offset.subtable, "mark to ligature positioning");
     OUT2((Offset)fmt->MarkCoverage);
-    CHECK4OVERFLOW(fmt->LigatureCoverage, "ligature coverage", "MarkToLigature");
+    check_overflow(g, "ligature coverage table", h->offset.subtable, "mark to ligature positioning");
     OUT2((Offset)fmt->LigatureCoverage);
     OUT2(fmt->ClassCount);
     OUT2(fmt->MarkArray);
@@ -4471,12 +4459,7 @@ static void fillCursive(hotCtx g, GPOSCtx h) {
         h->offset.subtable += size;
     }
 
-    if (h->offset.subtable > 0xFFFF) {
-        hotMsg(g, hotFATAL,
-               "Cursive Attach lookup subtable in GPOS "
-               "feature '%c%c%c%c' causes offset overflow.",
-               TAG_ARG(h->new.feature));
-    }
+    check_overflow(g, "cursive attach table", h->offset.subtable, "cursive positioning");
 
     sub->tbl = fmt;
 }
@@ -4501,7 +4484,7 @@ static void writeCursive(hotCtx g, GPOSCtx h, Subtable *sub) {
     OUT2(fmt->PosFormat);
     OUT2((Offset)fmt->Coverage);
     OUT2((Offset)fmt->EntryExitCount);
-    CHECK4OVERFLOW(fmt->Coverage, "cursive coverage", "CursivePos");
+    check_overflow(g, "cursive coverage table", h->offset.subtable, "cursive positioning");
     for (i = 0; i < recCnt; i++) {
         fmtRec = &fmt->EntryExitRecord[i];
 

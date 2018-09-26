@@ -333,8 +333,10 @@ void GSUBWrite(hotCtx g) {
                 writeGSUBCVParam(h, sub);
                 break;
 
-            case GSUBContext:
+            /* Not supported.
+             case GSUBContext:
                 break;
+            */
 #endif /* HOT_FEAT_SUPPORT */
         }
     }
@@ -378,8 +380,10 @@ void GSUBWrite(hotCtx g) {
                 writeReverseChain(g, h, sub);
                 break;
 
-            case GSUBContext:
-                break;
+                /* Not supported.
+                 case GSUBContext:
+                 break;
+                 */
 #endif /* HOT_FEAT_SUPPORT */
         }
     }
@@ -436,8 +440,10 @@ void GSUBReuse(hotCtx g) {
                 freeGSUBCVParam(g, sub);
                 break;
 
-            case GSUBContext:
-                break;
+                /* Not supported.
+                 case GSUBContext:
+                 break;
+                 */
 #endif /* HOT_FEAT_SUPPORT */
         }
     }
@@ -504,8 +510,6 @@ static void startNewSubtable(hotCtx g) {
     sub->script = h->new.script;
     sub->language = h->new.language;
     sub->feature = h->new.feature;
-    if (strlen(g->error_id_text) == 0)
-        printf("Hello");
     strcpy(sub->id_text, g->error_id_text); /* save feature anad lookup names for witing phase */
     sub->lkpType = h->new.lkpType;
     sub->lkpFlag = h->new.lkpFlag;
@@ -677,18 +681,10 @@ void GSUBLookupEnd(hotCtx g, Tag feature) {
     if (g->hadError) {
         return;
     }
-    if (feature != h->new.feature) {
-        /* This happens when a feature definition is empty. */
-        hotMsg(g, hotFATAL, "Empty lookup in %s", g->error_id_text);
-    }
 
-    if (h->new.rules.cnt == 0) {
-        int hasParam = ((h->new.lkpType == GSUBFeatureNameParam) ||
-                        (h->new.lkpType == GSUBCVParam));
-        if (!hasParam) {
-            hotMsg(g, hotFATAL, "Empty GSUB lookup in %s", g->error_id_text);
-        }
-    }
+    /* This function used to check for an empty feature or lookup, but this cannot happen
+     with the current implementation of the parser.
+     */
 
     if (h->otl == NULL) {
         /* Allocate table if not done so already */
@@ -729,12 +725,10 @@ void GSUBLookupEnd(hotCtx g, Tag feature) {
             fillGSUBCVParam(g, h, h->new.sub);
             break;
 
-        case GSUBContext:
-            hotMsg(g, hotFATAL, "unsupported GSUB lkpType <%d>", h->new.lkpType);
-
 #endif /* HOT_FEAT_SUPPORT */
         default:
-            hotMsg(g, hotFATAL, "unknown GSUB lkpType <%d>", h->new.lkpType);
+            /* Can't get here, but it is a useful check for future development. */
+            hotMsg(g, hotFATAL, "unknown GSUB lkpType <%d> in %s.", h->new.lkpType, g->error_id_text);
     }
 
     check_overflow(g, "lookup subtable", h->offset.subtable, "substitution");
@@ -777,12 +771,16 @@ static void fillGSUBFeatureNameParam(hotCtx g, GSUBCtx h, Subtable *sub) {
         (cvNumber >= 0) && (cvNumber <= 99)) {
         if (nameid != 0) {
             unsigned short nameIDPresent = nameVerifyDefaultNames(g, nameid);
-            if (nameIDPresent && nameIDPresent & MISSING_WIN_DEFAULT_NAME) {
-                hotMsg(g, hotFATAL, "Missing Windows default name for for feature name  nameid %i", nameid);
+            if (nameIDPresent && (nameIDPresent & MISSING_WIN_DEFAULT_NAME)) {
+                hotMsg(g, hotFATAL,
+                       "Missing Windows default name for feature name nameid %i in %s.",
+                       nameid, g->error_id_text);
             }
         }
     } else {
-        hotMsg(g, hotFATAL, "A 'featureNames' block is allowed only Stylistic Set (ssXX) features. It is being used in feature '%c%c%c%c'.", TAG_ARG(sub->feature));
+        hotMsg(g, hotFATAL,
+               "A 'featureNames' block is allowed only Stylistic Set (ssXX) features. It is being used in %s.",
+               g->error_id_text);
     }
 }
 
@@ -834,12 +832,16 @@ static void fillGSUBCVParam(hotCtx g, GSUBCtx h, Subtable *sub) {
             if (nameid != 0) {
                 unsigned short nameIDPresent = nameVerifyDefaultNames(g, nameid);
                 if (nameIDPresent && nameIDPresent & MISSING_WIN_DEFAULT_NAME) {
-                    hotMsg(g, hotFATAL, "Missing Windows default name for for feature name  nameid %i", nameid);
+                    hotMsg(g, hotFATAL,
+                           "Missing Windows default name for cvParameters name nameid %i in %s.",
+                           nameid, g->error_id_text);
                 }
             }
         }
     } else {
-        hotMsg(g, hotFATAL, "A 'cvParameters' block is allowed only Character Variant (cvXX) features. It is being used in feature '%c%c%c%c'.", TAG_ARG(sub->feature));
+        hotMsg(g, hotFATAL,
+               "A 'cvParameters' block is allowed only in Character Variant (cvXX) features. It is being used in %s.",
+               g->error_id_text);
     }
 }
 
@@ -1344,7 +1346,7 @@ static void fillMultiple(hotCtx g, GSUBCtx h) {
         if (j != 0 && rule->targ->gid == (rule - 1)->targ->gid) {
             featGlyphDump(g, rule->targ->gid, '\0', 0);
             hotMsg(g, hotFATAL,
-                   "Duplicate target glyph for alternate substitution in "
+                   "Duplicate target glyph for multiple substitution in "
                    "%s: %s",
                    g->error_id_text,
                    g->note.array);

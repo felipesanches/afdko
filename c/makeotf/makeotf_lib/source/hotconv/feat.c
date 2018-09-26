@@ -3746,9 +3746,7 @@ static void addFeatureParam(hotCtx g, short *params, unsigned short numParams) {
 
         default:
             featMsg(hotERROR,
-                    "Feature parameter not supported for feature"
-                    " '%c%c%c%c'",
-                    TAG_ARG(h->curr.feature));
+                    "A feature parameter is supported only for the 'size' feature.");
     }
 }
 

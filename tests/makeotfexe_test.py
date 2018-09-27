@@ -137,7 +137,7 @@ def test_feature_includes_bug164(feat_filename):
     if ('font.ufo' in feat_filename):
         with open(stderr_path, 'rb') as f:
             output = f.read()
-            assert("[FATAL] <SourceSans-Test> include file " +
-                   "<../../rel_to_main1.fea> not found" in output)
+            assert(b"[FATAL] <SourceSans-Test> include file " +
+                   b"<../../rel_to_main1.fea> not found" in output)
     else:
         assert os.path.isfile(otf_path)

@@ -440,16 +440,36 @@ static char *findFeatInclFile(cbCtx h, char *filename) {
     /* Check if relative path */
     if (filename[0] != '/') {
         int i;
-        /* Look first relative to to the current include directory. If
-         not found, check relative to the main feature file.
+        /* Look first relative to the main feature file.
+         If not found and it is a UFO font, then look relative to the parent
+         directory.
+         If still not found, look relative to the including parent feature file.
+         h->feat.includeDir[0] contains the parent directory of the main feature file.'
+         h->feat.includeDir[1] contains the parent directory of the including parent feature file.'
          */
-        for (i = 1; i >= 0; i--) {
-            if ((h->feat.includeDir[i] != 0) &&
-                (h->feat.includeDir[i][0] != '\0')) {
-                sprintf(path, "%s%s%s", h->feat.includeDir[i], sep(), filename);
+        if ((h->feat.includeDir[0] != 0) &&
+            (h->feat.includeDir[0][0] != '\0')) {
+            sprintf(path, "%s%s%s", h->feat.includeDir[0], sep(), filename);
+            if (fileExists(path)) {
+                printf("%s relative to main\n", path);
+                goto found;
+            }
+            /* Not found relative to main feature file, Try relative to UFO parent dir,
+             if that is what it is */
+            sprintf(path, "%s%s%s", h->feat.includeDir[0], sep(), "fontinfo.plist");
+            if (fileExists(path)) {
+                sprintf(path, "%s%s..%s%s", h->feat.includeDir[0], sep(), sep(), filename);
                 if (fileExists(path)) {
-                    goto found;
+                   goto found;
                 }
+            }
+        }
+        /* try relative to parent include file.*/
+        if ((h->feat.includeDir[1] != 0) &&
+            (h->feat.includeDir[1][0] != '\0')) {
+            sprintf(path, "%s%s%s", h->feat.includeDir[1], sep(), filename);
+            if (fileExists(path)) {
+                goto found;
             }
         }
         return NULL; /* Can't find include file (error) */

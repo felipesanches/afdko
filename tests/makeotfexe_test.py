@@ -128,21 +128,15 @@ def test_feature_includes_bug164(feat_filename):
 
     if os.path.exists(otf_path):
         os.remove(otf_path)
-    if 'font.ufo' in feat_filename:
-        import subprocess32 as subprocess
-        with pytest.raises(subprocess.CalledProcessError) as err:
-            runner(CMD + ['-o', 'f', '_{}'.format(input_filename)])
-        assert err.value.returncode == 1
-    else:
-        stderr_path = runner(
-            CMD +
-            ['-s', '-e', '-o',
-                'f', '_{}'.format(get_input_path(input_filename)),
-                'ff', '_{}'.format(get_input_path(feat_filename)),
-                'o', '_{}'.format(otf_path)])
+    stderr_path = runner(
+        CMD +
+        ['-s', '-e', '-o',
+            'f', '_{}'.format(get_input_path(input_filename)),
+            'ff', '_{}'.format(get_input_path(feat_filename)),
+            'o', '_{}'.format(otf_path)])
+    if ('font.ufo' in feat_filename):
         with open(stderr_path, 'rb') as f:
             output = f.read()
-            print("*******")
-            print(output)
-            print("*******")
+            assert "[FATAL] <SourceSans-Test> include file <../../rel_to_main1.fea> not found" in output
+    else:
         assert os.path.isfile(otf_path)

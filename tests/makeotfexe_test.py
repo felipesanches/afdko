@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 import pytest
 import subprocess32 as subprocess
+import os
 
 from runner import main as runner
 from differ import main as differ, SPLIT_MARKER
@@ -115,3 +116,29 @@ def test_version_warning_bug610():
         output = f.read()
     assert (b"[WARNING] <SourceSans-Test> Major version number not in "
             b"range 1 .. 255") not in output
+
+
+@pytest.mark.parametrize('feat_filename', [
+    'bug164/d1/d2/rel_to_main.fea', 'bug164/d1/d2/rel_to_parent.fea', 'bug164/d1/d2/font.ufo/features.fea',])
+def test_feature_includes_bug164(feat_filename):
+    input_filename = "bug164/d1/d2/font.pfa"
+    otf_path = get_temp_file_path()
+    
+    if os.path.exists(otf_path):
+        os.remove(otf_path)
+    if 'font.ufo' in feat_filename:
+        import subprocess32 as subprocess
+        with pytest.raises(subprocess.CalledProcessError) as err:
+            runner(CMD + ['-o', 'f', '_{}'.format(input_filename)])
+        assert err.value.returncode == 1
+    else:
+        stderr_path = runner(CMD + ['-s', '-e', '-o', 
+                    'f', '_{}'.format(get_input_path(input_filename)),
+                    'ff', '_{}'.format(get_input_path(feat_filename)),
+                    'o', '_{}'.format(otf_path)])
+        with open(stderr_path, 'rb') as f:
+            output = f.read()
+            print("*******")
+            print(output)
+            print("*******")
+        assert os.path.isfile(otf_path)

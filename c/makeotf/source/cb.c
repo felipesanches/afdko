@@ -48,10 +48,6 @@ extern jmp_buf mark;
 #define WINDOWS_DECORATIVE (5 << 4)
 #define MAX_CHAR_NAME_LEN 63       /* Max charname len (inc '\0') */
 #define MAX_FINAL_CHAR_NAME_LEN 63 /* Max charname len (inc '\0') */
-#ifdef WIN32
-char sepch(); /* from WIN.C */
-
-#endif
 
 #ifdef _MSC_VER /* defined by Microsoft Compiler */
 #include <io.h>
@@ -197,6 +193,22 @@ void message(void *ctx, int type, char *text) {
 }
 
 /* --------------------------- Memory Management --------------------------- */
+
+/* find last path directory separator */
+static char* findDirName(char *path)
+{
+    size_t i = strlen(path);
+    char* end = NULL;
+    while (i > 0)
+    {
+        end = strchr("/\\:", path[--i]);
+        if (end != NULL)
+            break;
+    }
+    if (end != NULL)
+        end = &path[i];
+    return end;
+}
 
 /* Make a copy of a string */
 static void copyStr(cbCtx h, char **dst, char *src) {
@@ -438,7 +450,7 @@ static char *findFeatInclFile(cbCtx h, char *filename) {
         return NULL;
     }
     /* Check if relative path */
-    if (filename[0] != '/') {
+    if ((filename[0] != '/') && (filename[0] != '\\') && (filename[1] != ':')) {
         int i;
         /* Look first relative to the main feature file.
          If not found and it is a UFO font, then look relative to the parent
@@ -483,7 +495,7 @@ static char *findFeatInclFile(cbCtx h, char *filename) {
 found : { /* set the current include directory */
     char *p;
 
-    p = strrchr(path, sepch());
+    p = findDirName(path);
     if (p == NULL) {
         /* if there are no directory separators, it is in the main feature file parent dir */
         if (h->feat.includeDir[1] != 0)
@@ -533,7 +545,7 @@ static char *featOpen(void *ctx, char *name, long offset) {
         /* RE-opening file: name is full path. */
         copyStr(h, &fullpath, name);
         /* Determine dir that feature file's in */
-        p = strrchr(fullpath, sepch()); /* xxx won't work for '\' delimiters */
+        p = findDirName(fullpath);
         if (p == NULL) {
             cbMemFree(ctx, h->feat.includeDir[1]);
             h->feat.includeDir[1] = 0;
@@ -1785,7 +1797,7 @@ void cbConvert(cbCtx h, int flags, char *clientVers,
     h->feat.mainFile = featurefile;
     if (featurefile != NULL) {
         char *p;
-        p = strrchr(featurefile, sepch()); /* xxx won't work for '\' delimiters */
+        p = findDirName(featurefile);
         if (p == NULL) {
             h->feat.includeDir[0] = curdir();
         } else {
